@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"net/http"
-	"time"
+	"strings"
 
 	"cloud.google.com/go/firestore"
 	"github.com/gin-gonic/gin"
@@ -12,7 +12,6 @@ import (
 	"bigredlink/models"
 	"bigredlink/utils"
 )
-
 
 type loginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
@@ -29,7 +28,11 @@ func Login(c *gin.Context) {
 	client := c.MustGet("firestoreClient").(*firestore.Client)
 	ctx := c.Request.Context()
 
-	docs, err := client.Collection("users").Where("email", "==", req.Email).Limit(1).Documents(ctx).GetAll()
+	docs, err := client.Collection("users").
+		Where("email", "==", req.Email).
+		Limit(1).
+		Documents(ctx).
+		GetAll()
 	if err != nil || len(docs) == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
@@ -41,7 +44,10 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(user.PasswordHash),
+		[]byte(req.Password),
+	); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
@@ -57,39 +63,34 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	if _, err := client.Collection("users").Doc(user.ID).Update(ctx, []firestore.Update{{Path: "refreshToken", Value: refreshToken}}); err != nil {
+	if _, err := client.Collection("users").
+		Doc(user.ID).
+		Update(ctx, []firestore.Update{
+			{Path: "refreshToken", Value: refreshToken},
+		}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to store refresh token"})
 		return
 	}
 
-	c.SetCookie("refresh_token", refreshToken, int((7*24*time.Hour).Seconds()), "/", "", true, true)
-
-	c.JSON(http.StatusOK, gin.H{"accessToken": accessToken})
+	c.JSON(http.StatusOK, gin.H{
+		"accessToken":  accessToken,
+		"refreshToken": refreshToken,
+	})
 }
 
 func Refresh(c *gin.Context) {
-	refreshToken, err := c.Cookie("refresh_token")
+	rt, err := c.Cookie("refresh_token")
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Refresh token missing"})
 		return
 	}
-
-	token, err := utils.ParseToken(refreshToken, true)
-	if err != nil || !token.Valid {
+	tkn, err := utils.ParseToken(rt, true)
+	if err != nil || !tkn.Valid {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
 		return
 	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-		return
-	}
-	userID, ok := claims["sub"].(string)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token subject"})
-		return
-	}
+	claims, _ := tkn.Claims.(jwt.MapClaims)
+	userID, _ := claims["sub"].(string)
 
 	client := c.MustGet("firestoreClient").(*firestore.Client)
 	ctx := c.Request.Context()
@@ -105,8 +106,7 @@ func Refresh(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server error"})
 		return
 	}
-
-	if user.RefreshToken != refreshToken {
+	if user.RefreshToken != rt {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Refresh token mismatch"})
 		return
 	}
@@ -116,21 +116,29 @@ func Refresh(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate access token"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"accessToken": newAccess})
 }
 
 func Logout(c *gin.Context) {
-	refreshToken, err := c.Cookie("refresh_token")
-	if err == nil {
-		tkn, perr := utils.ParseToken(refreshToken, true)
-		if perr == nil && tkn.Valid {
-			if claims, ok := tkn.Claims.(jwt.MapClaims); ok {
-				if userID, ok := claims["sub"].(string); ok {
-					client := c.MustGet("firestoreClient").(*firestore.Client)
-					ctx := c.Request.Context()
-					client.Collection("users").Doc(userID).Update(ctx, []firestore.Update{{Path: "refreshToken", Value: ""}})
-				}
+	tokenString, err := c.Cookie("refresh_token")
+	if err != nil {
+		// 2) fallback to Authorization header
+		auth := c.GetHeader("Authorization")
+		if strings.HasPrefix(auth, "Bearer ") {
+			tokenString = strings.TrimPrefix(auth, "Bearer ")
+		}
+	}
+
+	if tkn, perr := utils.ParseToken(tokenString, true); perr == nil && tkn.Valid {
+		if claims, ok := tkn.Claims.(jwt.MapClaims); ok {
+			if userID, ok := claims["sub"].(string); ok {
+				client := c.MustGet("firestoreClient").(*firestore.Client)
+				ctx := c.Request.Context()
+				client.Collection("users").
+					Doc(userID).
+					Update(ctx, []firestore.Update{
+						{Path: "refreshToken", Value: ""},
+					})
 			}
 		}
 	}
