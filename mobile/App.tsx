@@ -1,29 +1,29 @@
-import React, { useEffect, useState } from 'react'
-import { NavigationContainer } from '@react-navigation/native'
-import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import React, { useEffect, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import LoginScreen from './screens/LoginScreen'
-import HomeScreen from './screens/HomeScreen'
-import TokenManager from './utils/TokenManager'
+import LoginScreen from './screens/LoginScreen';
+import HomeScreen from './screens/HomeScreen';
+import TokenManager from './utils/TokenManager';
 
 type RootStackParamList = {
   Login: undefined
   Home: undefined
 }
 
-const Stack = createNativeStackNavigator<RootStackParamList>()
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
-  const [initialRoute, setInitialRoute] = useState<'Login' | 'Home'>('Login')
+  const [initialRoute, setInitialRoute] = useState<'Login' | 'Home'>('Login');
 
   useEffect(() => {
-    ;(async () => {
-      const token = await TokenManager.getAccess()
+    (async () => {
+      const token = await TokenManager.getAccess();
       if (token) {
-        setInitialRoute('Home')
+        setInitialRoute('Home');
       }
-    })()
-  }, [])
+    })();
+  }, []);
 
   return (
     <NavigationContainer>
@@ -35,5 +35,5 @@ export default function App() {
         <Stack.Screen name="Home" component={HomeScreen} />
       </Stack.Navigator>
     </NavigationContainer>
-  )
+  );
 }

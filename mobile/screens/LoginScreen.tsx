@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
-} from 'react-native'
-import AuthService from '../services/AuthService'
+} from 'react-native';
+import AuthService from '../services/AuthService';
 
 interface LoginScreenProps {
   navigation: {
@@ -18,32 +18,32 @@ interface LoginScreenProps {
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const [email, setEmail] = useState<string>('')
-  const [password, setPassword] = useState<string>('')
-  const [loading, setLoading] = useState<boolean>(false)
-  const [showPassword, setShowPassword] = useState<boolean>(false)
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Validation Error', 'Email and password are both required')
-      return
+      Alert.alert('Validation Error', 'Email and password are both required');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      await AuthService.login(email, password)
-      navigation.replace('Home')
+      await AuthService.login(email, password);
+      navigation.replace('Home');
     } catch (err: any) {
-      console.log('LOGIN ERROR:', err)
-      console.log('ERR RESPONSE:', err.response)
+      console.log('LOGIN ERROR:', err);
+      console.log('ERR RESPONSE:', err.response);
       Alert.alert(
         'Login Failed',
         err.response?.data?.error || err.message || 'Network Error'
-      )
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <View style={styles.container}>
@@ -82,8 +82,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         <Button title="Login" onPress={handleLogin} />
       )}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -118,6 +118,6 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: '500',
   },
-})
+});
 
-export default LoginScreen
+export default LoginScreen;
