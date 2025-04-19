@@ -21,7 +21,6 @@ const AuthService = {
       { headers: { Authorization: `Bearer ${refresh}` } }
     )
     const { accessToken } = data
-    // re‑save both (keep the same refresh)
     await TokenManager.save(accessToken, refresh)
     return accessToken
   },
